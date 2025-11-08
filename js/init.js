@@ -20,6 +20,7 @@ console.log(`全屏分辨率: ${fullscreenWidth} x ${fullscreenHeight}`);
 // 常量定义
 const DEFAULT_CANVAS_WIDTH = 1920;
 const DEFAULT_CANVAS_HEIGHT = 1080;
+const PhigrosDegree = Math.PI / 180 * 75;
 const versionText = 'Version : HTMLdev0.0.1';
 
 
@@ -32,9 +33,6 @@ console.log("canvas:",canvas.width,"x",canvas.height);
 
 
 // 全局变量
-let images = []; // 存储图片对象的数组
-let fadeInOpacity = 0; // 淡入透明度
-let fadeOutOpacity = 1; // 淡出透明度
 let globalTime = 0; // 全局时间计数器
 let animationId = null; // 动画帧ID，用于取消动画
 

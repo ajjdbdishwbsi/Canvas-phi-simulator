@@ -1,4 +1,6 @@
-// 在 init.js 的全局变量部分添加：
+
+const touchDebug = true;
+
 let touches = []; // 存储当前所有触摸点
 let maxTouches = 20; // 最大支持的触摸点数
 
@@ -12,7 +14,7 @@ class TouchPoint {
         this.startY = y;
         this.lastX = x;
         this.lastY = y;
-        this.startTime = Date.now();
+        this.startTime = performance.now();
         this.lastUpdateTime = performance.now();
         this.isActive = true;
         this.positionHistory = []; // 存储位置历史记录
@@ -22,6 +24,7 @@ class TouchPoint {
     
     update(x, y) {
         const currentTime = performance.now();
+        
         // 更新历史位置
         this.positionHistory.push({
             x: this.x,
@@ -29,35 +32,10 @@ class TouchPoint {
             time: currentTime
         });
         
-        // 移除15ms之前的记录
+        // 移除55ms之前的记录
         this.positionHistory = this.positionHistory.filter(record => 
             currentTime - record.time <= 55
         );
-        
-        // 设置lastX和lastY为10ms前的位置
-        const tenMsAgo = currentTime - 50;
-        const historicalRecord = this.positionHistory.find(record => 
-            record.time >= tenMsAgo
-        );
-        
-        if (historicalRecord) {
-            this.lastX = historicalRecord.x;
-            this.lastY = historicalRecord.y;
-        }
-        const deltaTime = currentTime - historicalRecord.time;
-        
-        // 计算移动距离和速度
-        const deltaX = x - historicalRecord.x;
-        const deltaY = y - historicalRecord.y;
-        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-        
-        if (deltaTime > 0) {
-            this.velocity = ((distance/canvas.height)*DEFAULT_CANVAS_HEIGHT) / deltaTime; // 像素/毫秒
-            
-            // 判断是否在滑动（速度阈值，可根据需要调整）
-            const slideThreshold = 0.6; // 像素/毫秒
-            this.isSliding = this.velocity > slideThreshold;
-        }
         
         // 更新位置和时间
         this.x = x;
@@ -75,6 +53,12 @@ function initTouchEvents() {
     canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
     canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
     canvas.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+
+    canvas.addEventListener('mousedown', handleMouseDown, { passive: false });
+    canvas.addEventListener('mousemove', handleMouseMove, { passive: false });
+    canvas.addEventListener('mouseup', handleMouseUp, { passive: false });
+    canvas.addEventListener('mouseleave', handleMouseUp, { passive: false });
+
     console.log('Touch events initialized.');
 }
 
@@ -96,16 +80,9 @@ function handleTouchStart(event) {
         const existingTouch = touches.find(t => t.identifier === touch.identifier);
         if (!existingTouch && touches.length < maxTouches) {
             touches.push(new TouchPoint(touch.identifier, x, y));
-            console.log(`Touch started: ID ${touch.identifier} at (${x.toFixed(0)}, ${y.toFixed(0)})`);
+            //console.log(`Touch started: ID ${touch.identifier} at (${x.toFixed(0)}, ${y.toFixed(0)})`);
         }
     }
-    
-    // 在开始屏幕状态下处理点击开始
-    //if (gameStatus === GAME_STATES.START_SCREEN && touches.length > 0) {
-    //    handleStartScreenTouch();
-    //}
-    
-    updateDebugDisplay();
 }
 
 /**
@@ -128,10 +105,7 @@ function handleTouchMove(event) {
             existingTouch.update(x, y);
         }
     }
-    
-    updateDebugDisplay();
 }
-
 /**
  * 处理触摸结束事件
  */
@@ -142,32 +116,68 @@ function handleTouchEnd(event) {
         const touch = event.changedTouches[i];
         const index = touches.findIndex(t => t.identifier === touch.identifier);
         if (index !== -1) {
-            console.log(`Touch ended: ID ${touch.identifier}`);
+            //console.log(`Touch ended: ID ${touch.identifier}`);
             touches.splice(index, 1);
         }
     }
+}
+
+// 鼠标按下事件处理（模拟触摸开始）
+function handleMouseDown(event) {
+    event.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
     
-    updateDebugDisplay();
+    const x = (event.clientX - rect.left) * scaleX;
+    const y = (event.clientY - rect.top) * scaleY;
+    
+    // 使用固定的标识符来模拟鼠标触摸点
+    const mouseIdentifier = -1; // 使用负数避免与真实触摸点冲突
+    
+    // 检查是否已存在鼠标触摸点
+    const existingTouch = touches.find(t => t.identifier === mouseIdentifier);
+    if (!existingTouch && touches.length < maxTouches) {
+        touches.push(new TouchPoint(mouseIdentifier, x, y));
+        //console.log(`Mouse touch started at (${x.toFixed(0)}, ${y.toFixed(0)})`);
+    }
 }
 
-/**
- * 处理开始屏幕的触摸事件
- */
-//function handleStartScreenTouch() {
-//    console.log('Start screen touched - starting game');
-    // 这里可以添加开始游戏的实际逻辑
-//}
-
-/**
- * 更新调试显示（可选）
- */
-function updateDebugDisplay() {
-    // 在控制台显示当前触摸点信息
-    //if (touches.length > 0) {
-        //console.log(`Active touches: ${touches.length}`);
-    //}
+// 鼠标移动事件处理（模拟触摸移动）
+function handleMouseMove(event) {
+    // 只有在鼠标按下时才处理移动
+    if (event.buttons !== 1) return;
+    
+    event.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
+    const x = (event.clientX - rect.left) * scaleX;
+    const y = (event.clientY - rect.top) * scaleY;
+    
+    // 查找鼠标触摸点
+    const mouseIdentifier = -1;
+    const existingTouch = touches.find(t => t.identifier === mouseIdentifier);
+    if (existingTouch) {
+        existingTouch.update(x, y);
+    }
 }
 
+// 鼠标释放事件处理（模拟触摸结束）
+function handleMouseUp(event) {
+    event.preventDefault();
+    
+    const mouseIdentifier = -1;
+    const index = touches.findIndex(t => t.identifier === mouseIdentifier);
+    if (index !== -1) {
+        //console.log(`Mouse touch ended`);
+        touches.splice(index, 1);
+    }
+}
+
+
+//用户使用
 /**
  * 获取所有活跃触摸点
  */
@@ -191,6 +201,57 @@ function clearAllTouches() {
 }
 
 
+/**
+ * 更新所有触摸点的状态（在主循环中调用）
+ */
+function updateTouchStates() {
+    const currentTime = performance.now();
+    const startSlideThreshold = 2.4; // 开始滑动的速度阈值（像素/毫秒）
+    const stopSlideThreshold = 1.2;  // 停止滑动的速度阈值（像素/毫秒）
+    const inactivityThreshold = 100; // 无活动判定时间(ms)
+    
+    touches.forEach(touch => {
+        // 设置lastX和lastY为50ms前的位置
+        const fiftyMsAgo = currentTime - 50;
+        const historicalRecord = touch.positionHistory.find(record => 
+            record.time >= fiftyMsAgo
+        );
+        
+        if (historicalRecord) {
+            touch.lastX = historicalRecord.x;
+            touch.lastY = historicalRecord.y;
+            const deltaTime = currentTime - historicalRecord.time;
+        
+            // 计算移动距离和速度
+            const deltaX = touch.x - historicalRecord.x;
+            const deltaY = touch.y - historicalRecord.y;
+            const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            
+            if (deltaTime > 0) {
+                touch.velocity = ((distance/canvas.height)*DEFAULT_CANVAS_HEIGHT) / deltaTime; // 像素/毫秒
+                
+                // 使用不同的阈值判断滑动状态
+                if (!touch.isSliding) {
+                    // 当前不是滑动状态，检查是否达到开始滑动阈值
+                    touch.isSliding = touch.velocity > startSlideThreshold;
+                } else {
+                    // 当前是滑动状态，检查是否低于停止滑动阈值
+                    touch.isSliding = touch.velocity > stopSlideThreshold;
+                }
+            }
+        } else {
+            // 如果没有历史记录，设置为非滑动状态
+            touch.velocity = 0;
+            touch.isSliding = false;
+        }
+        
+        // 额外检查：如果长时间没有位置更新，强制设置为非滑动状态
+        if (currentTime - touch.lastUpdateTime > inactivityThreshold) {
+            touch.velocity = 0;
+            touch.isSliding = false;
+        }
+    });
+}
 
 
 

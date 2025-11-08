@@ -1,52 +1,3 @@
-/**
- * 加载音频资源
- */
-function loadAudios() {
-    audioSources.forEach((src, index) => {
-        audios[index] = new Audio();
-        audios[index].src = src;
-        // 初始设置为静音，避免自动播放策略限制
-        audios[index].muted = true;
-        
-        audios[index].addEventListener('canplaythrough', () => {
-            audiosLoaded++;
-            checkAllResourcesLoaded();
-        });
-        
-        audios[index].addEventListener('error', (e) => {
-            console.error(`Failed to load audio: ${src}`, e);
-        });
-    });
-}
-
-/**
- * 加载图片资源
- */
-function loadImages() {
-    imageSources.forEach((src, index) => {
-        images[index] = new Image();
-        images[index].src = src;
-        
-        images[index].onload = () => {
-            imagesLoaded++;
-            checkAllResourcesLoaded();
-        };
-        
-        images[index].onerror = (e) => {
-            console.error(`Failed to load image: ${src}`, e);
-        };
-    });
-}
-
-/**
- * 检查所有资源是否加载完成
- */
-function checkAllResourcesLoaded() {
-    if (imagesLoaded === imageSources.length && audiosLoaded === audioSources.length) {
-        startButton.disabled = false;
-        console.log('All resources loaded successfully');
-    }
-}
 
 /**
  * 播放指定音频
@@ -94,15 +45,16 @@ function stopAndResetAllAudios() {
 }
 
 /**
- * 在Canvas上绘制图片，支持尺寸缩放、透明度调整和位置偏移
+ * 在Canvas上绘制图片，支持尺寸缩放、透明度调整、位置偏移和模糊效果
  * @param {HTMLImageElement} image - 要绘制的图片对象
- * @param {'Width' | 'Height'} sizeMode - 尺寸基准模式：'Width'基于画布宽度，'Height'基于画布高度
+ * @param {'Width' | 'Height'} sizeMode - 尺寸基准模式：'Width'占满画布宽度，'Height'占满画布高度
  * @param {number} size - 相对于基准尺寸的比例（0-1之间）
  * @param {number} [opacity=1.0] - 图片透明度，范围0-1，默认1.0（不透明）
  * @param {number} [dx_persent=0] - 水平偏移量，相对于画布宽度的比例（-1到1之间）
  * @param {number} [dy_persent=0] - 垂直偏移量，相对于画布高度的比例（-1到1之间）
+ * @param {number} [blurAmount=0] - 模糊程度，单位像素，默认0（不模糊）
  */
-function drawImage(image, sizeMode, size, opacity=1.0, dx_persent=0, dy_persent=0) {
+function drawImage(image, sizeMode, size, opacity = 1.0, dx_persent = 0, dy_persent = 0, blurAmount = 0) {
     const savedGlobalAlpha = ctx.globalAlpha;
     ctx.globalAlpha = opacity;
     if (!image || !image.complete) return;
@@ -126,57 +78,139 @@ function drawImage(image, sizeMode, size, opacity=1.0, dx_persent=0, dy_persent=
     x = (canvas.width - imgWidth) / 2;
     y = (canvas.height - imgHeight) / 2;
     
-    // 清除画布并绘制图片
-    //ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(image, x+dx_persent*canvas.width, y+dy_persent*canvas.height, imgWidth, imgHeight);
+    // 应用偏移
+    x += dx_persent * canvas.width;
+    y += dy_persent * canvas.height;
+    
+    // 如果有模糊效果，使用临时canvas
+    if (blurAmount > 0) {
+        // 创建临时canvas
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCanvas.width = imgWidth;
+        tempCanvas.height = imgHeight;
+        
+        // 应用模糊效果
+        tempCtx.filter = `blur(${blurAmount}px)`;
+        tempCtx.drawImage(image, 0, 0, imgWidth, imgHeight);
+        
+        // 绘制到主canvas
+        ctx.drawImage(tempCanvas, x, y, imgWidth, imgHeight);
+    } else {
+        // 直接绘制（无模糊）
+        ctx.drawImage(image, x, y, imgWidth, imgHeight);
+    }
+    
     ctx.globalAlpha = savedGlobalAlpha;
 }
 
-/**
- * 图片淡入效果
- * @param {number} imageIndex - 图片索引
- * @param {string} sizeMode - 尺寸模式
- * @param {number} size - 尺寸比例
- * @param {number} duration - 动画持续时间(ms)
- */
-function fadeInImage(imageIndex, sizeMode, size, duration) {
-    const fadeStep = 1 / (duration / (1000 / 60)); // 计算每帧透明度增量
-    
-    fadeInOpacity = Math.min(fadeInOpacity + fadeStep, 1);
-    ctx.globalAlpha = fadeInOpacity;
-    
-    drawImage(images[imageIndex], sizeMode, size);
-    
-    // 继续动画直到完全淡入
-    if (fadeInOpacity < 1) {
-        animationId = requestAnimationFrame(() => {
-            fadeInImage(imageIndex, sizeMode, size, duration);
-        });
-    }
-}
 
 /**
- * 图片淡出效果
- * @param {number} imageIndex - 图片索引
- * @param {string} sizeMode - 尺寸模式
- * @param {number} size - 尺寸比例
- * @param {number} duration - 动画持续时间(ms)
+ * 以Phigros平行四边形的形式绘制图片，支持模糊效果和图片裁剪
+ * @param {HTMLImageElement} img - 要绘制的图片对象
+ * @param {number} sx - 裁剪图片开始的x坐标
+ * @param {number} sy - 裁剪图片开始的y坐标
+ * @param {number} sWidth - 裁剪部分宽度
+ * @param {number} sHeight - 裁剪部分高度
+ * @param {number} x - 绘制位置的x坐标
+ * @param {number} y - 绘制位置的y坐标
+ * @param {number} width - 绘制宽度
+ * @param {number} height - 绘制高度
+ * @param {string} [mode='fit'] - 绘制模式:'fit-width'|'fit-height'适应,'stretch'拉伸
+ * @param {number} [blurAmount=0] - 模糊程度，单位像素，默认0（不模糊）
+ * @param {number} [degree=PhigrosDegree] - 平行四边形角度，默认使用PhigrosDegree
  */
-function fadeOutImage(imageIndex, sizeMode, size, duration) {
-    const fadeStep = 1 / (duration / (1000 / 60)); // 计算每帧透明度减量
+function drawClippedImage(img, opacity=1.0, sx, sy, sWidth, sHeight, x, y, width, height, mode = 'fit', blurAmount = 0, degree = PhigrosDegree) {
+    // 创建临时canvas
+    const tempCanvas = document.createElement('canvas');
+    const tempCtx = tempCanvas.getContext('2d');
+    tempCanvas.width = width;
+    tempCanvas.height = height;
     
-    fadeOutOpacity = Math.max(fadeOutOpacity - fadeStep, 0);
-    ctx.globalAlpha = fadeOutOpacity;
-    
-    drawImage(images[imageIndex], sizeMode, size);
-    
-    // 继续动画直到完全淡出
-    if (fadeOutOpacity > 0) {
-        animationId = requestAnimationFrame(() => {
-            fadeOutImage(imageIndex, sizeMode, size, duration);
-        });
+    // 应用模糊效果
+    if (blurAmount > 0) {
+        tempCtx.filter = `blur(${blurAmount}px)`;
     }
+    
+    // 在临时canvas上绘制裁剪后的图片
+    if (mode === 'stretch') {
+        // 直接拉伸到目标尺寸
+        tempCtx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, width, height);
+    } else if (mode === 'fit-width') {
+        // 占满画布宽度，高度按比例缩放，裁剪上下部分显示中间
+        const scale = width / sWidth;
+        const scaledHeight = sHeight * scale;
+        
+        if (scaledHeight >= height) {
+            // 如果缩放后高度大于等于目标高度，直接居中绘制
+            const offsetY = (height - scaledHeight) / 2;
+            tempCtx.drawImage(img, sx, sy, sWidth, sHeight, 0, offsetY, width, scaledHeight);
+        } else {
+            // 如果缩放后高度小于目标高度，需要裁剪源图片的中间部分
+            const targetHeight = height / scale;
+            const cropY = sy + (sHeight - targetHeight) / 2;
+            tempCtx.drawImage(img, sx, cropY, sWidth, targetHeight, 0, 0, width, height);
+        }
+    } else if (mode === 'fit-height') {
+        // 占满画布高度，宽度按比例缩放，裁剪左右部分显示中间
+        const scale = height / sHeight;
+        const scaledWidth = sWidth * scale;
+        
+        if (scaledWidth >= width) {
+            // 如果缩放后宽度大于等于目标宽度，直接居中绘制
+            const offsetX = (width - scaledWidth) / 2;
+            tempCtx.drawImage(img, sx, sy, sWidth, sHeight, offsetX, 0, scaledWidth, height);
+        } else {
+            // 如果缩放后宽度小于目标宽度，需要裁剪源图片的中间部分
+            const targetWidth = width / scale;
+            const cropX = sx + (sWidth - targetWidth) / 2;
+            tempCtx.drawImage(img, cropX, sy, targetWidth, sHeight, 0, 0, width, height);
+        }
+    } else {
+        // 默认fit模式：适应目标区域，保持宽高比，居中显示
+        const scaleX = width / sWidth;
+        const scaleY = height / sHeight;
+        const scale = Math.min(scaleX, scaleY);
+        const scaledWidth = sWidth * scale;
+        const scaledHeight = sHeight * scale;
+        const offsetX = (width - scaledWidth) / 2;
+        const offsetY = (height - scaledHeight) / 2;
+        tempCtx.drawImage(img, sx, sy, sWidth, sHeight, offsetX, offsetY, scaledWidth, scaledHeight);
+    }
+    
+    // 重置filter，避免影响后续操作
+    tempCtx.filter = 'none';
+    
+    // 在临时canvas上创建裁剪路径
+    tempCtx.globalCompositeOperation = 'destination-out';
+    
+    // 左上角三角形
+    tempCtx.beginPath();
+    tempCtx.moveTo(0, 0);
+    tempCtx.lineTo(height/Math.tan(degree), 0);
+    tempCtx.lineTo(0, height);
+    tempCtx.closePath();
+    tempCtx.fill();
+    
+    // 右下角三角形
+    tempCtx.beginPath();
+    tempCtx.moveTo(width, height);
+    tempCtx.lineTo(width - height/Math.tan(degree), height);
+    tempCtx.lineTo(width, 0);
+    tempCtx.closePath();
+    tempCtx.fill();
+    
+    // 将处理好的图片绘制到主canvas上
+    const savedGlobalAlpha = ctx.globalAlpha;
+    ctx.globalAlpha = opacity;
+    
+    ctx.drawImage(tempCanvas, x, y);
+
+    ctx.globalAlpha = savedGlobalAlpha;
 }
+// 使用示例：
+// drawClippedImage(images[4],0,0,images[4].width,images[4].height,171,155,800,450,10);
+
 
 /**
  * 进入全屏模式
@@ -259,8 +293,6 @@ function resetAnimationState() {
     ctx.globalAlpha = 1;
     ctx.clearRect(0, 0, DEFAULT_CANVAS_WIDTH, DEFAULT_CANVAS_HEIGHT);
 }
-
-
 
 
 /**

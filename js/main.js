@@ -24,6 +24,7 @@ let lastTouchesNum = 0;
 
 
 function updateGame() {
+    updateTouchStates();
 
     const currentTime = performance.now();
     const elapsed = currentTime - startTime;
@@ -73,6 +74,10 @@ function updateGame() {
             break;
             
         case GAME_STATES.START_SCREEN:
+            if (temp === 0) {
+                loadchapterImages();
+                temp = -1; //这里表示是否执行过loadchapterImages();函数
+            }
             logoOpacity = Math.min(elapsed / 1000 ,1);
             bgOpacity = Math.min(Math.max(elapsed-500,0) / (2000/0.5) ,0.5); // 0.2秒后2秒淡入,最大0.5不透明度
             if (audios[0].paused || audios[0].ended || audios[0].currentTime > audios[0].duration-0.2){
@@ -80,7 +85,7 @@ function updateGame() {
                 playAudio(0);
             }
             if (elapsed > 1250) {
-                if (touches.length > lastTouchesNum && lastTouchesNum === 0) {
+                if (touches.length > lastTouchesNum && lastTouchesNum === 0 && chapterImgLoaded) {
                     gameStatus = GAME_STATES.SWICH_TO_MAIN_MENU;
                     startTime = currentTime;
                 }
@@ -89,23 +94,26 @@ function updateGame() {
             break;
 
         case GAME_STATES.SWICH_TO_MAIN_MENU:
-            setVolume(0,Math.max(1-elapsed/1000, 0));
-            logoOpacity = Math.max(1-elapsed/800, 0); // 0.8秒淡出
+            setVolume(0,Math.max(1-elapsed/800, 0));
+            logoOpacity = Math.max(1-elapsed/600, 0); // 0.6秒淡出
             temp = Math.max(bgOpacity,temp); // 这里temp指背景开始淡出时的不透明度
-            bgOpacity = Math.max((1-elapsed/800)*temp, 0),bgOpacity; // 0.8秒淡出
-            if (elapsed > 1000) {
+            bgOpacity = Math.max((1-elapsed/600)*temp, 0),bgOpacity; // 0.6秒淡出
+            if (elapsed > 800) {
                 gameStatus = GAME_STATES.MAIN_MENU;
                 startTime = currentTime;
             }
-        break;
+            break;
 
+        case GAME_STATES.MAIN_MENU:
+            
+            break;
 
     }
 }
 
 function renderGame() {
-    const currentTime = performance.now();
-    const elapsed = currentTime - startTime;
+    //const currentTime = performance.now();
+    //const elapsed = currentTime - startTime;
     // ctx.save();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -137,7 +145,7 @@ function renderGame() {
             // 文字位置：在logo下方，相对canvas高度定位
             const textY = canvas.height * 0.5 + canvas.height * 0.178; // 屏幕中心偏下17.8%
             ctx.fillText('点  击  屏  幕  开  始', canvas.width * 0.5, textY);
-            // 根据canvas大小计算字体大小（相对宽度1%）
+            // 根据canvas大小计算字体大小
             const verFontSize = Math.max(canvas.width * 0.012, 12); // 最小12px
             ctx.font = `normal ${verFontSize}px 'PhigrosFont', Arial, sans-serif`;
             ctx.fillStyle = `rgba(192, 192, 192, ${logoOpacity*0.6})`; // 淡灰色
@@ -147,6 +155,9 @@ function renderGame() {
             ctx.restore();
             break;
 
+        case GAME_STATES.MAIN_MENU:
+            renderMainMenu(drawOpacity);
+            break;
 
         default:
             // 其他状态不绘制内容
@@ -154,7 +165,7 @@ function renderGame() {
     }
 
     // ctx.restore();
-    drawTouchPoints(); // 触摸调试
+    if (touchDebug) {drawTouchPoints();} // 触摸调试
 }
 
 function startgame() {
