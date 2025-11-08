@@ -11,7 +11,7 @@ const imageSources = [
     'assets/Warning.jpg', //1
     'assets/MainStoryLegacyBlur.png', //2
     'assets/Phigros.png', //3
-    'assets/StarDustRay.png'//4
+    //'assets/StarDustRay.png'//4
 ];
 let images = []; // 存储图片对象的数组
 let imagesLoaded = 0; // 已加载的图片数量

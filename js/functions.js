@@ -105,9 +105,13 @@ function drawImage(image, sizeMode, size, opacity = 1.0, dx_persent = 0, dy_pers
 }
 
 
+// 预渲染缓存对象
+const clipImageCache = new Map();
+
 /**
- * 以Phigros平行四边形的形式绘制图片，支持模糊效果和图片裁剪
+ * 以Phigros平行四边形的形式绘制图片，支持模糊效果和图片裁剪（带缓存优化）
  * @param {HTMLImageElement} img - 要绘制的图片对象
+ * @param {number} opacity - 透明度
  * @param {number} sx - 裁剪图片开始的x坐标
  * @param {number} sy - 裁剪图片开始的y坐标
  * @param {number} sWidth - 裁剪部分宽度
@@ -120,96 +124,162 @@ function drawImage(image, sizeMode, size, opacity = 1.0, dx_persent = 0, dy_pers
  * @param {number} [blurAmount=0] - 模糊程度，单位像素，默认0（不模糊）
  * @param {number} [degree=PhigrosDegree] - 平行四边形角度，默认使用PhigrosDegree
  */
-function drawClippedImage(img, opacity=1.0, sx, sy, sWidth, sHeight, x, y, width, height, mode = 'fit', blurAmount = 0, degree = PhigrosDegree) {
-    // 创建临时canvas
-    const tempCanvas = document.createElement('canvas');
-    const tempCtx = tempCanvas.getContext('2d');
-    tempCanvas.width = width;
-    tempCanvas.height = height;
+function drawClippedImage(img, opacity = 1.0, sx, sy, sWidth, sHeight, x, y, width, height, mode = 'fit', blurAmount = 0, degree = PhigrosDegree) {
+    // 生成缓存键
+    const cacheKey = generateCacheKey(img, sx, sy, sWidth, sHeight, width, height, mode, blurAmount, degree);
     
-    // 应用模糊效果
-    if (blurAmount > 0) {
-        tempCtx.filter = `blur(${blurAmount}px)`;
-    }
+    let cachedCanvas;
     
-    // 在临时canvas上绘制裁剪后的图片
-    if (mode === 'stretch') {
-        // 直接拉伸到目标尺寸
-        tempCtx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, width, height);
-    } else if (mode === 'fit-width') {
-        // 占满画布宽度，高度按比例缩放，裁剪上下部分显示中间
-        const scale = width / sWidth;
-        const scaledHeight = sHeight * scale;
-        
-        if (scaledHeight >= height) {
-            // 如果缩放后高度大于等于目标高度，直接居中绘制
-            const offsetY = (height - scaledHeight) / 2;
-            tempCtx.drawImage(img, sx, sy, sWidth, sHeight, 0, offsetY, width, scaledHeight);
-        } else {
-            // 如果缩放后高度小于目标高度，需要裁剪源图片的中间部分
-            const targetHeight = height / scale;
-            const cropY = sy + (sHeight - targetHeight) / 2;
-            tempCtx.drawImage(img, sx, cropY, sWidth, targetHeight, 0, 0, width, height);
-        }
-    } else if (mode === 'fit-height') {
-        // 占满画布高度，宽度按比例缩放，裁剪左右部分显示中间
-        const scale = height / sHeight;
-        const scaledWidth = sWidth * scale;
-        
-        if (scaledWidth >= width) {
-            // 如果缩放后宽度大于等于目标宽度，直接居中绘制
-            const offsetX = (width - scaledWidth) / 2;
-            tempCtx.drawImage(img, sx, sy, sWidth, sHeight, offsetX, 0, scaledWidth, height);
-        } else {
-            // 如果缩放后宽度小于目标宽度，需要裁剪源图片的中间部分
-            const targetWidth = width / scale;
-            const cropX = sx + (sWidth - targetWidth) / 2;
-            tempCtx.drawImage(img, cropX, sy, targetWidth, sHeight, 0, 0, width, height);
-        }
+    // 检查缓存
+    if (clipImageCache.has(cacheKey)) {
+        cachedCanvas = clipImageCache.get(cacheKey);
     } else {
-        // 默认fit模式：适应目标区域，保持宽高比，居中显示
-        const scaleX = width / sWidth;
-        const scaleY = height / sHeight;
-        const scale = Math.min(scaleX, scaleY);
-        const scaledWidth = sWidth * scale;
-        const scaledHeight = sHeight * scale;
-        const offsetX = (width - scaledWidth) / 2;
-        const offsetY = (height - scaledHeight) / 2;
-        tempCtx.drawImage(img, sx, sy, sWidth, sHeight, offsetX, offsetY, scaledWidth, scaledHeight);
+        // 创建临时canvas进行预渲染
+        cachedCanvas = document.createElement('canvas');
+        const tempCtx = cachedCanvas.getContext('2d');
+        cachedCanvas.width = width;
+        cachedCanvas.height = height;
+        
+        // 应用模糊效果
+        if (blurAmount > 0) {
+            tempCtx.filter = `blur(${blurAmount}px)`;
+        }
+        
+        // 在临时canvas上绘制裁剪后的图片
+        if (mode === 'stretch') {
+            // 直接拉伸到目标尺寸
+            tempCtx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, width, height);
+        } else if (mode === 'fit-width') {
+            // 占满画布宽度，高度按比例缩放，裁剪上下部分显示中间
+            const scale = width / sWidth;
+            const scaledHeight = sHeight * scale;
+            
+            if (scaledHeight >= height) {
+                // 如果缩放后高度大于等于目标高度，直接居中绘制
+                const offsetY = (height - scaledHeight) / 2;
+                tempCtx.drawImage(img, sx, sy, sWidth, sHeight, 0, offsetY, width, scaledHeight);
+            } else {
+                // 如果缩放后高度小于目标高度，需要裁剪源图片的中间部分
+                const targetHeight = height / scale;
+                const cropY = sy + (sHeight - targetHeight) / 2;
+                tempCtx.drawImage(img, sx, cropY, sWidth, targetHeight, 0, 0, width, height);
+            }
+        } else if (mode === 'fit-height') {
+            // 占满画布高度，宽度按比例缩放，裁剪左右部分显示中间
+            const scale = height / sHeight;
+            const scaledWidth = sWidth * scale;
+            
+            if (scaledWidth >= width) {
+                // 如果缩放后宽度大于等于目标宽度，直接居中绘制
+                const offsetX = (width - scaledWidth) / 2;
+                tempCtx.drawImage(img, sx, sy, sWidth, sHeight, offsetX, 0, scaledWidth, height);
+            } else {
+                // 如果缩放后宽度小于目标宽度，需要裁剪源图片的中间部分
+                const targetWidth = width / scale;
+                const cropX = sx + (sWidth - targetWidth) / 2;
+                tempCtx.drawImage(img, cropX, sy, targetWidth, sHeight, 0, 0, width, height);
+            }
+        } else {
+            // 默认fit模式：适应目标区域，保持宽高比，居中显示
+            const scaleX = width / sWidth;
+            const scaleY = height / sHeight;
+            const scale = Math.min(scaleX, scaleY);
+            const scaledWidth = sWidth * scale;
+            const scaledHeight = sHeight * scale;
+            const offsetX = (width - scaledWidth) / 2;
+            const offsetY = (height - scaledHeight) / 2;
+            tempCtx.drawImage(img, sx, sy, sWidth, sHeight, offsetX, offsetY, scaledWidth, scaledHeight);
+        }
+        
+        // 重置filter，避免影响后续操作
+        tempCtx.filter = 'none';
+        
+        // 在临时canvas上创建裁剪路径
+        tempCtx.globalCompositeOperation = 'destination-out';
+        
+        // 左上角三角形
+        tempCtx.beginPath();
+        tempCtx.moveTo(0, 0);
+        tempCtx.lineTo(height/Math.tan(degree), 0);
+        tempCtx.lineTo(0, height);
+        tempCtx.closePath();
+        tempCtx.fill();
+        
+        // 右下角三角形
+        tempCtx.beginPath();
+        tempCtx.moveTo(width, height);
+        tempCtx.lineTo(width - height/Math.tan(degree), height);
+        tempCtx.lineTo(width, 0);
+        tempCtx.closePath();
+        tempCtx.fill();
+        
+        // 将处理好的canvas存入缓存
+        clipImageCache.set(cacheKey, cachedCanvas);
+        
+        //console.log(`[drawClippedImage] 创建新缓存: ${cacheKey}`);
     }
     
-    // 重置filter，避免影响后续操作
-    tempCtx.filter = 'none';
-    
-    // 在临时canvas上创建裁剪路径
-    tempCtx.globalCompositeOperation = 'destination-out';
-    
-    // 左上角三角形
-    tempCtx.beginPath();
-    tempCtx.moveTo(0, 0);
-    tempCtx.lineTo(height/Math.tan(degree), 0);
-    tempCtx.lineTo(0, height);
-    tempCtx.closePath();
-    tempCtx.fill();
-    
-    // 右下角三角形
-    tempCtx.beginPath();
-    tempCtx.moveTo(width, height);
-    tempCtx.lineTo(width - height/Math.tan(degree), height);
-    tempCtx.lineTo(width, 0);
-    tempCtx.closePath();
-    tempCtx.fill();
-    
-    // 将处理好的图片绘制到主canvas上
+    // 将缓存的canvas绘制到主canvas上
     const savedGlobalAlpha = ctx.globalAlpha;
     ctx.globalAlpha = opacity;
-    
-    ctx.drawImage(tempCanvas, x, y);
-
+    ctx.drawImage(cachedCanvas, x, y);
     ctx.globalAlpha = savedGlobalAlpha;
+}
+
+/**
+ * 生成缓存键
+ */
+function generateCacheKey(img, opacity, sx, sy, sWidth, sHeight, width, height, mode, blurAmount, degree) {
+    return `${img.src || 'unknown'}_${opacity}_${sx}_${sy}_${sWidth}_${sHeight}_${width}_${height}_${mode}_${blurAmount}_${degree}`;
+}
+
+/**
+ * 清除drawClippedImage的缓存
+ * @param {string} [pattern] - 可选，清除匹配特定模式的缓存键
+ */
+function clearClipImageCache(pattern = null) {
+    if (pattern) {
+        // 清除匹配模式的缓存
+        for (const key of clipImageCache.keys()) {
+            if (key.includes(pattern)) {
+                clipImageCache.delete(key);
+                console.log(`[clearClipImageCache] 清除缓存: ${key}`);
+            }
+        }
+    } else {
+        // 清除所有缓存
+        const cacheSize = clipImageCache.size;
+        clipImageCache.clear();
+        console.log(`[clearClipImageCache] 清除所有缓存，共 ${cacheSize} 项`);
+    }
+}
+
+/**
+ * 获取缓存统计信息
+ */
+function getClipImageCacheStats() {
+    return {
+        size: clipImageCache.size,
+        keys: Array.from(clipImageCache.keys())
+    };
 }
 // 使用示例：
 // drawClippedImage(images[4],0,0,images[4].width,images[4].height,171,155,800,450,10);
+
+/**
+ * 更新FPS计算
+ */
+function updateFPS() {
+    frameCount++;
+    const currentTime = performance.now();
+    
+    // 每500ms更新一次FPS显示
+    if (currentTime - lastFpsUpdate >= fpsUpdateInterval) {
+        fps = Math.round((frameCount * 1000) / (currentTime - lastFpsUpdate));
+        frameCount = 0;
+        lastFpsUpdate = currentTime;
+    }
+}
 
 
 /**

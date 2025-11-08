@@ -36,6 +36,13 @@ console.log("canvas:",canvas.width,"x",canvas.height);
 let globalTime = 0; // 全局时间计数器
 let animationId = null; // 动画帧ID，用于取消动画
 
+// FPS显示
+let showFPS = true;
+let fps = 0;
+let frameCount = 0;
+let lastFpsUpdate = 0;
+const fpsUpdateInterval = 500; // 每500ms更新一次FPS显示
+
 // 新增的
 let startTime = 0;
 let gameStatus = 'init';

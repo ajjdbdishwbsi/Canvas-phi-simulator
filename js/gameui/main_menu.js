@@ -17,6 +17,8 @@ let chapterImgsLoadedNum = 0;
 let chapterImgLoaded = false;
 let chapterShowing = 1;
 let menuNowPos = 0;
+let menuChapterVelocity = 0;
+let doingAnimation = false;
 
 
 function loadchapterImages() {
@@ -38,9 +40,6 @@ function loadchapterImages() {
 }
 
 
-//window.gc();
-
-
 
 function updateMainMenu(){
     const currentTime = performance.now();
@@ -54,13 +53,13 @@ function renderMainMenu(drawOpacity){
     // 渲染章节
     chapterImg.forEach((src, index) => {
         if (index === chapterShowing) { 
-            drawClippedImage(src, 1.0, 0, 0, src.width, src.height, (menuPadding + menuNowPos + index*(chapterWidth+chapterRelativeDistance))*canvas.height,
+            drawClippedImage(src, 1.0*drawOpacity, 0, 0, src.width, src.height, (menuPadding + menuNowPos + index*(chapterWidth+chapterRelativeDistance))*canvas.height,
                                 (1-chapterHeight)/2*canvas.height, (chapterShowingWidth+chapterWidthRenderDX)*canvas.height, chapterHeight*canvas.height, 'fit-height',0);
         } else if (index > chapterShowing) {
-            drawClippedImage(src, 0.6, 0, 0, src.width, src.height, (menuPadding + menuNowPos + index*(chapterWidth+chapterRelativeDistance) + chapterShowingWidth-chapterWidth)*canvas.height,
+            drawClippedImage(src, 0.6*drawOpacity, 0, 0, src.width, src.height, (menuPadding + menuNowPos + index*(chapterWidth+chapterRelativeDistance) + chapterShowingWidth-chapterWidth)*canvas.height,
                                 (1-chapterHeight)/2*canvas.height, (chapterWidth+chapterWidthRenderDX)*canvas.height, chapterHeight*canvas.height, 'fit-height',75);
         } else if (index < chapterShowing) {
-            drawClippedImage(src, 0.6, 0, 0, src.width, src.height, (menuPadding + menuNowPos + index*(chapterWidth+chapterRelativeDistance))*canvas.height,
+            drawClippedImage(src, 0.6*drawOpacity, 0, 0, src.width, src.height, (menuPadding + menuNowPos + index*(chapterWidth+chapterRelativeDistance))*canvas.height,
                                 (1-chapterHeight)/2*canvas.height, (chapterWidth+chapterWidthRenderDX)*canvas.height, chapterHeight*canvas.height, 'fit-height',75);
         }
     });

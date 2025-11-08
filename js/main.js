@@ -11,6 +11,7 @@ const GAME_STATES = {
 };
 
 function gameLoop() {
+    updateFPS(); // 更新FPS计算
     updateGame(); // 游戏逻辑更新
     renderGame(); // 渲染
     requestAnimationFrame(gameLoop);
@@ -33,6 +34,7 @@ function updateGame() {
         case GAME_STATES.INIT:
             if (elapsed > 500) { // 开始前等待500ms
                 startTime = currentTime;
+                drawOpacity = 0;
                 gameStatus = GAME_STATES.FADEIN_PIGEON;
             }
             break;
@@ -101,11 +103,12 @@ function updateGame() {
             if (elapsed > 800) {
                 gameStatus = GAME_STATES.MAIN_MENU;
                 startTime = currentTime;
+                drawOpacity = 0;
             }
             break;
 
         case GAME_STATES.MAIN_MENU:
-            
+            drawOpacity = Math.min(elapsed / 1000 ,1);
             break;
 
     }
@@ -115,21 +118,29 @@ function renderGame() {
     //const currentTime = performance.now();
     //const elapsed = currentTime - startTime;
     // ctx.save();
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
 
     switch (gameStatus) {
         case GAME_STATES.FADEIN_PIGEON:
         case GAME_STATES.FADEOUT_PIGEON:
-            drawImage(images[0], 'Height', size=0.181, opacity=drawOpacity);
+            if (drawOpacity < 1) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                drawImage(images[0], 'Height', size=0.181, opacity=drawOpacity);
+            }
             break;
 
         case GAME_STATES.FADEIN_WARN:
         case GAME_STATES.FADEOUT_WARN:
-            drawImage(images[1], 'Height', size=0.59, opacity=drawOpacity, dx_persent=0, dy_persent=-0.05);
+            if (drawOpacity < 1) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                drawImage(images[1], 'Height', size=0.59, opacity=drawOpacity, dx_persent=0, dy_persent=-0.05);
+            }
             break;
 
         case GAME_STATES.START_SCREEN:
         case GAME_STATES.SWICH_TO_MAIN_MENU:
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
             drawImage(images[2], 'Height', size=1, opacity=bgOpacity);
             drawImage(images[3], 'Height', size=0.168, opacity=logoOpacity, dx_persent=0, dy_persent=-0.04);
 
@@ -156,7 +167,10 @@ function renderGame() {
             break;
 
         case GAME_STATES.MAIN_MENU:
-            renderMainMenu(drawOpacity);
+            if (menuChapterVelocity !== 0 || touches.length !== 0 || drawOpacity !== 1) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                renderMainMenu(drawOpacity);
+            }
             break;
 
         default:
@@ -166,6 +180,7 @@ function renderGame() {
 
     // ctx.restore();
     if (touchDebug) {drawTouchPoints();} // 触摸调试
+    if (showFPS) {renderFPS();} // FPS
 }
 
 function startgame() {
@@ -188,3 +203,36 @@ document.addEventListener('fullscreenchange', handleFullscreenChange);
 document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
 document.addEventListener('mozfullscreenchange', handleFullscreenChange);
 document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+/**
+ * 在右上角显示FPS
+ */
+function renderFPS() {
+    ctx.save();
+    
+    // 设置FPS显示样式
+    const fontSize = Math.max(canvas.width * 0.015, 16); // 相对宽度1.5%，最小16px
+    ctx.font = `bold ${fontSize}px Arial, sans-serif`;
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'top';
+    
+    // 添加半透明背景，提高文字可读性
+    const text = `FPS: ${fps}`;
+    const textMetrics = ctx.measureText(text);
+    const padding = fontSize * 0.3;
+    
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillRect(
+        canvas.width - textMetrics.width - padding * 2, 
+        padding, 
+        textMetrics.width + padding * 2, 
+        fontSize + padding * 2
+    );
+    
+    // 绘制FPS文字
+    ctx.fillStyle = fps > 50 ? '#00ff00' : (fps > 30 ? '#ffff00' : '#ff0000'); // 根据FPS值改变颜色
+    ctx.fillText(text, canvas.width - padding, padding + fontSize * 0.1);
+    
+    ctx.restore();
+}
