@@ -3,7 +3,7 @@ const audioSources = [
     'audio-assets/TouchToStart.wav', //0
 ];
 let audios = []; // 存储音频对象的数组
-let audiosLoaded = 0; // 已加载的音频数量
+let audiosLoadedNum = 0; // 已加载的音频数量
 
 // 图片资源配置
 const imageSources = [
@@ -14,7 +14,7 @@ const imageSources = [
     //'assets/StarDustRay.png'//4
 ];
 let images = []; // 存储图片对象的数组
-let imagesLoaded = 0; // 已加载的图片数量
+let imagesLoadedNum = 0; // 已加载的图片数量
 
 /**
  * 加载音频资源
@@ -27,7 +27,7 @@ function loadAudios() {
         audios[index].muted = true;
         
         audios[index].addEventListener('canplaythrough', () => {
-            audiosLoaded++;
+            audiosLoadedNum++;
             checkAllResourcesLoaded();
         });
         
@@ -46,7 +46,7 @@ function loadImages() {
         images[index].src = src;
         
         images[index].onload = () => {
-            imagesLoaded++;
+            imagesLoadedNum++;
             checkAllResourcesLoaded();
         };
         
@@ -61,7 +61,7 @@ function loadImages() {
  * 检查所有资源是否加载完成
  */
 function checkAllResourcesLoaded() {
-    if (imagesLoaded === imageSources.length && audiosLoaded === audioSources.length) {
+    if (imagesLoadedNum === imageSources.length && audiosLoadedNum === audioSources.length) {
         startButton.disabled = false;
         console.log('All resources loaded successfully');
     }

@@ -1,4 +1,7 @@
 
+let startTime = 0;
+let gameStatus = 'init';
+
 const GAME_STATES = {
     INIT: 'init',
     FADEIN_PIGEON: 'fadein_pigeon',
@@ -77,26 +80,29 @@ function updateGame() {
             
         case GAME_STATES.START_SCREEN:
             if (temp === 0) {
-                loadchapterImages();
-                temp = -1; //这里表示是否执行过loadchapterImages();函数
+                loadChapterImages();
+                loadChapterBlurImages();
+                loadChapterAudios();
+                temp = -1; //这里表示是否执行过loadchapter
             }
             logoOpacity = Math.min(elapsed / 1000 ,1);
             bgOpacity = Math.min(Math.max(elapsed-500,0) / (2000/0.5) ,0.5); // 0.2秒后2秒淡入,最大0.5不透明度
             if (audios[0].paused || audios[0].ended || audios[0].currentTime > audios[0].duration-0.2){
                 audios[0].currentTime = 0;
-                playAudio(0);
+                playAudio(audios[0]);
             }
             if (elapsed > 1250) {
-                if (touches.length > lastTouchesNum && lastTouchesNum === 0 && chapterImgLoaded) {
+                if (touches.length > lastTouchesNum && lastTouchesNum === 0 && chapterImgLoaded && chapterBlurImgLoaded && chapterAudioLoaded) {
                     gameStatus = GAME_STATES.SWICH_TO_MAIN_MENU;
                     startTime = currentTime;
+                    unlockAudio(chapterAudio);
                 }
                 lastTouchesNum = touches.length;
             } else {lastTouchesNum = touches.length;}
             break;
 
         case GAME_STATES.SWICH_TO_MAIN_MENU:
-            setVolume(0,Math.max(1-elapsed/800, 0));
+            setVolume(audios[0],Math.max(1-elapsed/800, 0));
             logoOpacity = Math.max(1-elapsed/600, 0); // 0.6秒淡出
             temp = Math.max(bgOpacity,temp); // 这里temp指背景开始淡出时的不透明度
             bgOpacity = Math.max((1-elapsed/600)*temp, 0),bgOpacity; // 0.6秒淡出
@@ -104,11 +110,20 @@ function updateGame() {
                 gameStatus = GAME_STATES.MAIN_MENU;
                 startTime = currentTime;
                 drawOpacity = 0;
+                audios[0].currentTime = 0;
+                audios[0].pause();
             }
             break;
 
         case GAME_STATES.MAIN_MENU:
+            if (chapterAudio[0].paused || chapterAudio[0].ended || chapterAudio[0].currentTime > chapterAudio[0].duration-0.2){
+                chapterAudio[0].currentTime = 0;
+                playAudio(chapterAudio[0]);
+            }
             drawOpacity = Math.min(elapsed / 1000 ,1);
+
+            updateMainMenu(elapsed);
+
             break;
 
     }
@@ -118,8 +133,6 @@ function renderGame() {
     //const currentTime = performance.now();
     //const elapsed = currentTime - startTime;
     // ctx.save();
-    
-
     switch (gameStatus) {
         case GAME_STATES.FADEIN_PIGEON:
         case GAME_STATES.FADEOUT_PIGEON:
@@ -167,7 +180,7 @@ function renderGame() {
             break;
 
         case GAME_STATES.MAIN_MENU:
-            if (menuChapterVelocity !== 0 || touches.length !== 0 || drawOpacity !== 1) {
+            if (true || menuChapterVelocity !== 0 || touches.length !== 0 || drawOpacity !== 1 ) {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 renderMainMenu(drawOpacity);
             }
@@ -185,9 +198,10 @@ function renderGame() {
 
 function startgame() {
     console.log('StartGame');
+    ctx.globalAlpha = 1;
+    ctx.clearRect(0, 0, DEFAULT_CANVAS_WIDTH, DEFAULT_CANVAS_HEIGHT);
     startTime = performance.now();
-    unlockAudio();
-    resetAnimationState();
+    unlockAudio(audios);
     enterFullscreen();
     stopAndResetAllAudios();
     gameLoop();

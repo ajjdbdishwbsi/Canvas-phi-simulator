@@ -18,8 +18,8 @@ if (fullscreenWidth < fullscreenHeight) {
 console.log(`全屏分辨率: ${fullscreenWidth} x ${fullscreenHeight}`);
 
 // 常量定义
-const DEFAULT_CANVAS_WIDTH = 1920;
-const DEFAULT_CANVAS_HEIGHT = 1080;
+const DEFAULT_CANVAS_WIDTH = 1280;
+const DEFAULT_CANVAS_HEIGHT = 720;
 const PhigrosDegree = Math.PI / 180 * 75;
 const versionText = 'Version : HTMLdev0.0.1';
 
@@ -33,8 +33,6 @@ console.log("canvas:",canvas.width,"x",canvas.height);
 
 
 // 全局变量
-let globalTime = 0; // 全局时间计数器
-let animationId = null; // 动画帧ID，用于取消动画
 
 // FPS显示
 let showFPS = true;
@@ -42,11 +40,6 @@ let fps = 0;
 let frameCount = 0;
 let lastFpsUpdate = 0;
 const fpsUpdateInterval = 500; // 每500ms更新一次FPS显示
-
-// 新增的
-let startTime = 0;
-let gameStatus = 'init';
-
 
 // 音频上下文和标志变量
 let audioContext = null;

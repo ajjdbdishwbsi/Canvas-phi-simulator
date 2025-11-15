@@ -3,6 +3,9 @@ const touchDebug = true;
 
 let touches = []; // 存储当前所有触摸点
 let maxTouches = 20; // 最大支持的触摸点数
+let newTouchClicked = false; 
+let newTouchEnded = false;
+let lastEndedTouch;
 
 // 触摸点类
 class TouchPoint {
@@ -80,6 +83,7 @@ function handleTouchStart(event) {
         const existingTouch = touches.find(t => t.identifier === touch.identifier);
         if (!existingTouch && touches.length < maxTouches) {
             touches.push(new TouchPoint(touch.identifier, x, y));
+            newTouchClicked = true;
             //console.log(`Touch started: ID ${touch.identifier} at (${x.toFixed(0)}, ${y.toFixed(0)})`);
         }
     }
@@ -117,7 +121,9 @@ function handleTouchEnd(event) {
         const index = touches.findIndex(t => t.identifier === touch.identifier);
         if (index !== -1) {
             //console.log(`Touch ended: ID ${touch.identifier}`);
+            lastEndedTouch = touches[index];
             touches.splice(index, 1);
+            newTouchEnded = true;
         }
     }
 }
@@ -139,6 +145,7 @@ function handleMouseDown(event) {
     const existingTouch = touches.find(t => t.identifier === mouseIdentifier);
     if (!existingTouch && touches.length < maxTouches) {
         touches.push(new TouchPoint(mouseIdentifier, x, y));
+        newTouchClicked = true;
         //console.log(`Mouse touch started at (${x.toFixed(0)}, ${y.toFixed(0)})`);
     }
 }
@@ -173,11 +180,14 @@ function handleMouseUp(event) {
     if (index !== -1) {
         //console.log(`Mouse touch ended`);
         touches.splice(index, 1);
+        newTouchEnded = true;
     }
 }
 
 
+
 //用户使用
+
 /**
  * 获取所有活跃触摸点
  */
