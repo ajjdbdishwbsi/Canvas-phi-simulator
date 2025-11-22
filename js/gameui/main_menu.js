@@ -1,7 +1,7 @@
 // 常量
 const chapterNum = 8;
 
-const chapterImgSources = [
+const chapterImages = new ImageSpace([
     'assets/MainMenu/Chapters/Single.png', //0
     'assets/MainMenu/Chapters/MainStoryLegacy.png',//1
     'assets/MainMenu/Chapters/MainStory5.png', //2
@@ -10,8 +10,9 @@ const chapterImgSources = [
     'assets/MainMenu/Chapters/MainStory8_2S.png', //5
     'assets/MainMenu/Chapters/SideStory1.png', //6
     'assets/MainMenu/Chapters/SideStory2.png', //7
-];
-const chapterBlurImgSources = [
+], 'chapterImages');
+
+const chapterBlurImages = new ImageSpace([
     'assets/MainMenu/ChaptersBlur/SingleBlur.png', //0
     'assets/MainMenu/ChaptersBlur/MainStoryLegacyBlur.png',//1
     'assets/MainMenu/ChaptersBlur/MainStory5Blur.png', //2
@@ -20,23 +21,11 @@ const chapterBlurImgSources = [
     'assets/MainMenu/ChaptersBlur/MainStory8_2Blur.png', //5
     'assets/MainMenu/ChaptersBlur/SideStory1Blur.png', //6
     'assets/MainMenu/ChaptersBlur/SideStory2Blur.png', //7
-];
+], 'chapterBlurImages');
 
-let chapterImgsLoadedNum = 0;
-let chapterImg = [];
-let chapterImgLoaded = false;
-
-let chapterBlurImgsLoadedNum = 0;
-let chapterBlurImg = [];
-let chapterBlurImgLoaded = false;
-
-
-const chapterAudioSources = [
+const chapterAudios = new AudioSpace([
     'audio-assets/MainMenu/ChapterSelect0.wav', //0
-];
-let chapterAudiosLoadedNum = 0;
-let chapterAudio = [];
-let chapterAudioLoaded = false;
+], 'chapterAudios');
 
 const ChapterText = [
     'Single',
@@ -85,45 +74,6 @@ function loadChapterImages() {
     });
 }
 
-function loadChapterBlurImages() {
-    chapterBlurImgSources.forEach((src, index) => {
-        chapterBlurImg[index] = new Image();
-        chapterBlurImg[index].src = src;
-        chapterBlurImg[index].onload = () => {
-            chapterBlurImgsLoadedNum++;
-            if (chapterBlurImgsLoadedNum === chapterBlurImgSources.length) {
-                chapterBlurImgLoaded = true;
-                console.log('[MainMenu] 成功加载主菜单章节模糊图片');
-            }
-        };
-        
-        chapterBlurImg[index].onerror = (e) => {
-            console.error(`Failed to load image: ${src}`, e);
-        };
-    });
-}
-
-function loadChapterAudios() {
-    chapterAudioSources.forEach((src, index) => {
-        chapterAudio[index] = new Audio();
-        chapterAudio[index].src = src;
-        // 初始设置为静音，避免自动播放策略限制
-        chapterAudio[index].muted = true;
-        
-        chapterAudio[index].addEventListener('canplaythrough', () => {
-            chapterAudiosLoadedNum++;
-            if (chapterAudiosLoadedNum === chapterAudioSources.length) {
-                chapterAudioLoaded = true;
-                console.log('[MainMenu] 成功加载主菜单音频');
-            }
-        });
-        
-        chapterAudio[index].addEventListener('error', (e) => {
-            console.error(`Failed to load audio: ${src}`, e);
-        });
-    });
-}
-
 
 
 function updateMainMenu(elapsed){
@@ -155,15 +105,15 @@ function updateMainMenu(elapsed){
 }
 
 function renderMainMenu(drawOpacity){
-    drawImage(chapterBlurImg[chapterShowing], 'Height', size = 1.0, drawOpacity*0.3, 0, 0, 0); // 背景
+    drawImage(chapterBlurImages.files[chapterShowing], 'Height', size = 1.0, drawOpacity*0.3, 0, 0, 0); // 背景
 
     // 渲染选中章节图片
-    const nowShowImg = chapterImg[chapterShowing];
+    const nowShowImg = chapterImages.files[chapterShowing];
     drawClippedImage(nowShowImg, 1.0*drawOpacity, 0, 0, nowShowImg.width, nowShowImg.height, (menuPadding - menuRenderPos + chapterShowing*(chapterWidth+chapterRelativeDistance))*canvas.height,
                             (1-chapterHeight)/2*canvas.height, (chapterShowingWidth+chapterWidthRenderDX)*canvas.height, chapterHeight*canvas.height, 'fit-height',0);
 
     // 渲染其它章节图片
-    chapterBlurImg.forEach((src, index) => {
+    chapterBlurImages.files.forEach((src, index) => {
         if (index > chapterShowing) {
             drawClippedImage(src, 0.6*drawOpacity, 0, 0, src.width, src.height, (menuPadding - menuRenderPos + index*(chapterWidth+chapterRelativeDistance) + chapterShowingWidth-chapterWidth)*canvas.height,
                                 (1-chapterHeight)/2*canvas.height, (chapterWidth+chapterWidthRenderDX)*canvas.height, chapterHeight*canvas.height, 'fit-height',0);
