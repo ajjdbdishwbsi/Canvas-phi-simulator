@@ -1,1 +1,3 @@
 一个开发中的纯前端的JavaScript-Canvas网页Phigros仿制品...
+
+目标是还原完整的phigros游戏界面
