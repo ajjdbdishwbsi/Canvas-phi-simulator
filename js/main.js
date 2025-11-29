@@ -83,6 +83,13 @@ function updateGame() {
                 chapterImages.load();
                 chapterBlurImages.load();
                 chapterAudios.load();
+                // 设置加载完成回调
+                chapterImages.onLoadComplete = function() {
+                    if (chapterBlurImages.isLoaded === true) mainmenu_loadChapters();
+                };
+                chapterBlurImages.onLoadComplete = function() {
+                    if (chapterImages.isLoaded === true) mainmenu_loadChapters();
+                };
                 temp = -1; //这里表示是否执行过加载主界面
             }
             logoOpacity = Math.min(elapsed / 1000 ,1);
@@ -175,7 +182,7 @@ function renderGame() {
             ctx.fillStyle = `rgba(192, 192, 192, ${logoOpacity*0.6})`; // 淡灰色
             ctx.textAlign = 'right'; // 右对齐
             ctx.textBaseline = 'bottom'; // 底部对齐
-            ctx.fillText(versionText, canvas.width*0.997, canvas.height*0.995); // 右下角绘制，不留边距
+            ctx.fillText(versionText, canvas.width*0.997, canvas.height*0.995); // 右下角绘制，留一点点边距
             ctx.restore();
             break;
 
@@ -192,8 +199,8 @@ function renderGame() {
     }
 
     // ctx.restore();
-    if (touchDebug) {drawTouchPoints();} // 触摸调试
-    if (showFPS) {renderFPS();} // FPS
+    if (touchDebug) drawTouchPoints(); // 触摸调试
+    if (showFPS) renderFPS(); // FPS
 }
 
 function startgame() {
@@ -202,7 +209,7 @@ function startgame() {
     ctx.clearRect(0, 0, DEFAULT_CANVAS_WIDTH, DEFAULT_CANVAS_HEIGHT);
     startTime = performance.now();
     beginAudios.unlock();
-    enterFullscreen();
+    //enterFullscreen();
     //stopAndResetAllAudios();
     gameLoop();
     startButton.disabled = true;

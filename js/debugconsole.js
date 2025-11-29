@@ -1,3 +1,5 @@
+///*
+
 // 重写控制台方法
 (function() {
     const consoleOutput = document.getElementById('consoleOutput');
@@ -29,3 +31,5 @@
         addLogEntry(args.join(' '), 'error');
     };
 })();
+
+//*/
